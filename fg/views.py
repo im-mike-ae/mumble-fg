@@ -60,7 +60,13 @@ from .models import (
     TempLink,
     resolve_murmur_models,
 )
-from .runtime import RuntimeRegistration, get_runtime_service, safe_list_servers, safe_registration_inventory
+from .runtime import (
+    RuntimeRegistration,
+    get_runtime_service,
+    safe_list_servers,
+    safe_registration_inventory,
+    split_host_port,
+)
 
 logger = logging.getLogger(__name__)
 _CONTROL_CLIENT = BgControlClient()
@@ -1938,9 +1944,14 @@ def temp_link_public(request, token: str):
                 if link.max_uses is not None and link.use_count >= link.max_uses:
                     link.is_active = False
                 link.save(update_fields=['use_count', 'last_redeemed_at', 'is_active', 'updated_at'])
+                # Mumble's connect dialog has separate address and port
+                # fields and rejects a pasted 'host:port', so hand the guest
+                # the two halves instead of the raw address.
+                host, port = split_host_port(response.get('address') or '')
                 credentials = {
                     'server_label': response.get('server_name') or link.server_name,
-                    'address': response.get('address') or '',
+                    'address': host,
+                    'port': port,
                     'username': response.get('username') or '',
                     'display_name': response.get('display_name') or display_name,
                     'password': response.get('password') or '',

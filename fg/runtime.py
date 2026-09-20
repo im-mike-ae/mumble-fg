@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import Any
+from urllib.parse import urlparse
 
 from django.contrib.auth import get_user_model
 from django.utils.dateparse import parse_datetime
@@ -13,6 +14,53 @@ from django.utils.dateparse import parse_datetime
 from fg.control import BgControlClient, BgSyncError
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MUMBLE_PORT = '64738'
+
+
+def split_host_port(raw_address: Any, *, default_port: str = DEFAULT_MUMBLE_PORT) -> tuple[str, str]:
+    """Split a Murmur address into ``(host, port)``.
+
+    The Mumble client's connect dialog takes the host and the port in separate
+    fields and rejects a pasted ``host:port`` string, so anything we show a
+    pilot has to be split before it reaches the page.
+    """
+    address = str(raw_address or '').strip()
+    if not address:
+        return '', ''
+    port = ''
+
+    if '://' in address:
+        parsed = urlparse(address)
+        host = str(parsed.hostname or '').strip()
+        if host:
+            address = host
+        try:
+            # A non-numeric port in the URL raises rather than returning None.
+            parsed_port = parsed.port
+        except ValueError:
+            parsed_port = None
+        if parsed_port:
+            port = str(parsed_port)
+
+    if not port and address.startswith('['):
+        if ']:' in address:
+            end = address.find(']')
+            parsed_port = address[end + 2 :].strip()
+            return address[1:end], parsed_port if parsed_port.isdigit() else default_port
+        if address.endswith(']'):
+            return address[1:-1].strip(), default_port
+
+    if not port and ':' in address and address.count(':') == 1:
+        host, parsed_port = address.rsplit(':', 1)
+        host = str(host).strip()
+        parsed_port = parsed_port.strip()
+        # Anything that isn't a port number is dropped rather than left on the
+        # host: a host field Mumble would reject is the bug this split exists
+        # to avoid.
+        return host, parsed_port if parsed_port.isdigit() else default_port
+
+    return address, port or default_port
 
 
 @dataclass(frozen=True)
