@@ -2,11 +2,12 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import Permission, User
 from django.contrib.contenttypes.models import ContentType
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import reverse
 
 from accounts.models import UserProfile
 from fg.models import TempLink
+from fg.runtime import split_host_port
 
 _NO_REDIS = dict(
     CACHES={'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}},
@@ -78,6 +79,39 @@ class TempLinksViewTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'temp_deadbeef')
         self.assertContains(response, 'Abcd1234!')
+        # Mumble rejects a pasted 'host:port', so the two are shown apart.
+        self.assertEqual(response.context['credentials']['address'], 'voice.example.com')
+        self.assertEqual(response.context['credentials']['port'], '64738')
+        self.assertNotContains(response, 'voice.example.com:64738')
         link.refresh_from_db()
         self.assertEqual(link.use_count, 1)
         self.assertFalse(link.is_active)
+
+
+class SplitHostPortTest(SimpleTestCase):
+    def test_splits_host_and_port(self):
+        self.assertEqual(split_host_port('voice.example.com:64738'), ('voice.example.com', '64738'))
+
+    def test_defaults_port_when_absent(self):
+        self.assertEqual(split_host_port('voice.example.com'), ('voice.example.com', '64738'))
+
+    def test_handles_scheme_and_ipv6(self):
+        self.assertEqual(split_host_port('mumble://voice.example.com:64739'), ('voice.example.com', '64739'))
+        self.assertEqual(split_host_port('[2001:db8::1]:64740'), ('2001:db8::1', '64740'))
+        self.assertEqual(split_host_port('[2001:db8::1]'), ('2001:db8::1', '64738'))
+
+    def test_blank_address_yields_blanks(self):
+        self.assertEqual(split_host_port(''), ('', ''))
+
+    def test_malformed_port_falls_back_without_raising(self):
+        # urlparse raises on a non-numeric port; the guest page redeems the
+        # link before splitting, so a raise here would burn a single-use link.
+        self.assertEqual(split_host_port('mumble://voice.example.com:notaport'), ('voice.example.com', '64738'))
+        self.assertEqual(split_host_port('[2001:db8::1]:notaport'), ('2001:db8::1', '64738'))
+
+    def test_host_never_keeps_a_colon(self):
+        for address in ('voice.example.com:', 'voice.example.com:64738 (Finland)', 'voice.example.com:x'):
+            with self.subTest(address=address):
+                host, port = split_host_port(address)
+                self.assertEqual(host, 'voice.example.com')
+                self.assertEqual(port, '64738')

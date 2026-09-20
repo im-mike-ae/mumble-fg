@@ -27,6 +27,16 @@
                 <button type="button" class="btn btn-outline btn-xs" onclick="navigator.clipboard.writeText('{{ credentials.address|escapejs }}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
             </div>
             <div style="margin-bottom: 0.5rem;">
+                <strong>{% trans "Port" %}:</strong>
+                <code style="user-select: all;">{{ credentials.port|default:"-" }}</code>
+                {% if credentials.port %}
+                <button type="button" class="btn btn-outline btn-xs" onclick="navigator.clipboard.writeText('{{ credentials.port|escapejs }}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
+                {% endif %}
+            </div>
+            <p style="margin: 0 0 0.75rem; font-size: 0.85em; opacity: 0.8;">
+                {% trans "Enter the address and the port in their own fields in Mumble. It will not accept them pasted together as address:port." %}
+            </p>
+            <div style="margin-bottom: 0.5rem;">
                 <strong>{% trans "Username" %}:</strong>
                 <code style="user-select: all;">{{ credentials.username }}</code>
                 <button type="button" class="btn btn-outline btn-xs" onclick="navigator.clipboard.writeText('{{ credentials.username|escapejs }}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
@@ -39,7 +49,7 @@
                 <code style="user-select: all; overflow-wrap: anywhere;">{{ credentials.password }}</code>
                 <button type="button" class="btn btn-outline btn-xs" onclick="navigator.clipboard.writeText('{{ credentials.password|escapejs }}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy',1500)">Copy</button>
             </div>
-            <button type="button" class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('Address: {{ credentials.address|escapejs }}\nUsername: {{ credentials.username|escapejs }}\nPassword: {{ credentials.password|escapejs }}');this.textContent='Copied All!';setTimeout(()=>this.textContent='Copy All',1500)">Copy All</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="navigator.clipboard.writeText('Address: {{ credentials.address|escapejs }}\nPort: {{ credentials.port|escapejs }}\nUsername: {{ credentials.username|escapejs }}\nPassword: {{ credentials.password|escapejs }}');this.textContent='Copied All!';setTimeout(()=>this.textContent='Copy All',1500)">Copy All</button>
         </div>
     {% elif usable %}
         <form method="post" style="padding: 1rem; border: 1px solid var(--border-color, #2f3640); border-radius: 8px;">
